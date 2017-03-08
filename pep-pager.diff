@@ -1,0 +1,90 @@
+diff --git a/peppager/__init__.py b/peppager/__init__.py
+index dd3568a..4466638 100644
+--- a/peppager/__init__.py
++++ b/peppager/__init__.py
+@@ -2,4 +2,12 @@
+ 
+ from __future__ import absolute_import
+ 
++import sys
++
++from .api import download_pep, show_with_pager
+ from .version import __version__  # noqa
++
++
++def main(args=None):
++    args = sys.argv[1:] if args is None else args
++    show_with_pager(download_pep(int(args[0])))
+diff --git a/peppager/__main__.py b/peppager/__main__.py
+new file mode 100644
+index 0000000..b3aed17
+--- /dev/null
++++ b/peppager/__main__.py
+@@ -0,0 +1,5 @@
++import sys
++
++from . import main
++
++sys.exit(main(sys.argv[1:]) or 0)
+diff --git a/peppager/api.py b/peppager/api.py
+index 5ffad22..b137c8a 100644
+--- a/peppager/api.py
++++ b/peppager/api.py
+@@ -3,7 +3,22 @@
+ 
+ from __future__ import absolute_import, print_function, unicode_literals
+ 
++import subprocess
++import sys
++import requests
+ 
+-def add(a, b):
+-    """Return sum of a and b."""
+-    return a + b
++
++PEP_BASE_URL = "https://github.com/python/peps/raw/master"
++
++def show_with_pager(text):
++    try:
++        pager = subprocess.Popen(['less', '-F', '-R', '-S', '-X', '-K'],
++                                 stdin=subprocess.PIPE, stdout=sys.stdout)
++        pager.communicate(text.encode('utf-8'))
++    except KeyboardInterrupt:
++        # let less handle this, -K will exit cleanly
++        pass
++
++def download_pep(pepno):
++    r = requests.get("{}/pep-{:04}.txt".format(PEP_BASE_URL, pepno))
++    return r.text
+diff --git a/requirements/base.in b/requirements/base.in
+index 8b13789..f229360 100644
+--- a/requirements/base.in
++++ b/requirements/base.in
+@@ -1 +1 @@
+-
++requests
+diff --git a/setup.py b/setup.py
+index 184f97a..752fbb9 100755
+--- a/setup.py
++++ b/setup.py
+@@ -60,7 +60,7 @@ Topic :: Internet
+ """
+ 
+ install_requires = [
+-    # 'six',
++    'requests',
+ ]
+ 
+ 
+@@ -80,5 +80,10 @@ setup(
+     install_requires=install_requires,
+     cmdclass={
+         'test': ToxTestCommand,
+-    }
++    },
++    entry_points={
++        'console_scripts': [
++            'pep-pager = peppager:main',
++        ]
++    },
+ )
